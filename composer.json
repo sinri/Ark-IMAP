@@ -1,0 +1,35 @@
+{
+  "name": "sinri/ark-imap",
+  "description": "Ark IMAP Component",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Sinri Edogawa",
+      "email": "e.joshua.s.e@gmail.com"
+    }
+  ],
+  "require": {
+    "sinri/ark-core": "^2.0",
+    "ext-json": "*"
+  },
+  "suggest": {
+    "ext-imap": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "sinri\\ark\\imap\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "sinri\\ark\\imap\\test\\": "test/"
+    }
+  },
+  "repositories": {
+    "packagist": {
+      "type": "composer",
+      "url": "https://packagist.laravel-china.org"
+    }
+  }
+}
