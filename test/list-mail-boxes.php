@@ -22,5 +22,5 @@ $IE = new ArkImapWorker(
 
 $mailBoxes = $IE->listMailBoxes();
 foreach ($mailBoxes as $mailBox) {
-    echo "> " . json_encode($mailBox) . PHP_EOL;
+    echo "Mail Box " . $mailBox['name'] . ' : Its raw expression is ' . $mailBox['code'] . PHP_EOL;
 }

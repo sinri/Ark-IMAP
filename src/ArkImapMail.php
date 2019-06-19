@@ -17,9 +17,9 @@ class ArkImapMail
 
     public $entireRawBody;
 
-    public $text_body;
-    public $mp_text_body;
-    public $mp_html_body;
+    public $textBody;
+    public $mpTextBody;
+    public $mpHtmlBody;
 
     /**
      * @param $imapStream
@@ -83,7 +83,7 @@ class ArkImapMail
         $mime = imap_headerinfo($imapStream, $messageSequenceNumber);
 
         $item->date = $mime->date;
-        $item->subject = ImapExcavator::mimeDecode($mime->subject);
+        $item->subject = ArkImapWorker::mimeDecode($mime->subject);
         $item->from = $mime->from[0]->mailbox . "@" . $mime->from[0]->host;
         $item->sender = $mime->sender[0]->mailbox . "@" . $mime->sender[0]->host;
 
@@ -99,18 +99,18 @@ class ArkImapMail
     public function loadTextBody($imapStream)
     {
         $body = imap_fetchbody($imapStream, $this->uid, "1", FT_UID | FT_PEEK);
-        $this->text_body = $body;//base64_decode($body);
+        $this->textBody = $body;//base64_decode($body);
     }
 
     public function loadMpTextBody($imapStream)
     {
         $body = imap_fetchbody($imapStream, $this->uid, "1.1", FT_UID | FT_PEEK);
-        $this->mp_text_body = $body;//base64_decode($body);
+        $this->mpTextBody = $body;//base64_decode($body);
     }
 
     public function loadMpHtmlBody($imapStream)
     {
         $body = imap_fetchbody($imapStream, $this->uid, "1.2", FT_UID | FT_PEEK);
-        $this->mp_html_body = $body;//base64_decode($body);
+        $this->mpHtmlBody = $body;//base64_decode($body);
     }
 }

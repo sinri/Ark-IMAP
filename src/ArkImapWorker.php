@@ -16,18 +16,23 @@ class ArkImapWorker
     protected $imapPort;
     protected $imapUsername;
     protected $imapPassword;
+    protected $useSSL;
+    protected $imapAddress;
     /**
      * @var string
      */
     protected $lastError;
 
-    public function __construct($host, $port, $username, $password)
+    public function __construct($host, $port, $username, $password, $useSSL = true)
     {
+        $this->useSSL = $useSSL;
         $this->imapHost = $host;
         $this->imapPort = $port;
         $this->imapUsername = $username;
         $this->imapPassword = $password;
         $this->logger = ArkLogger::makeSilentLogger();
+
+        $this->imapAddress = "{{$this->imapHost}:{$this->imapPort}/imap" . ($this->useSSL ? "/ssl" : "") . "}";
     }
 
     public static function createCriteriaWithDateRange($sinceDate = null, $beforeDate = null)
@@ -91,17 +96,20 @@ class ArkImapWorker
 
     public function listMailBoxes()
     {
-        $imapStream = imap_open("{{$this->imapHost}:{$this->imapPort}/imap/ssl}", $this->imapUsername, $this->imapPassword);
-        $folders = imap_list($imapStream, "{{$this->imapHost}:{$this->imapPort}}", "*");
+        $imapStream = imap_open($this->imapAddress, $this->imapUsername, $this->imapPassword);
+        $folders = imap_list($imapStream, $this->imapAddress, "*");//"{{$this->imapHost}:{$this->imapPort}}"
+
+        $prefixLength = strlen($this->imapAddress);
 
         $list = [];
         foreach ($folders as $rawFolderName) {
             $decodedFolderName = mb_convert_encoding($rawFolderName, "utf-8", "UTF7-IMAP");
 
             $list[] = [
-                "raw" => $rawFolderName,
-                "utf8" => $decodedFolderName,
-                "mailbox" => "{{$this->imapHost}:{$this->imapPort}/imap/ssl}" . $rawFolderName,
+                "raw" => $rawFolderName,// for raw IMAP coding
+                "utf8" => $decodedFolderName,// with leading address, for human debug
+                "code" => substr($rawFolderName, $prefixLength),// used for method `searchInMailBox`
+                "name" => substr($decodedFolderName, $prefixLength),// no leading address, for human reading
             ];
         }
 
@@ -112,12 +120,12 @@ class ArkImapWorker
     /**
      * @param $boxRawName
      * @param string $criteria
-     * @param null|callable $callback function($imapStream, $messageUID, &$list,$logger) fetch mail through stream with UID and filter them into list
+     * @param null|callable $callback function($imapStream, $messageUID, &$innerList,$logger) fetch mail through stream with UID and filter them into list
      * @return ArkImapMail[]|bool
      */
     public function searchInMailBox($boxRawName, $criteria = 'ALL', $callback = null)
     {
-        $imapStream = imap_open("{{$this->imapHost}:{$this->imapPort}/imap/ssl}" . $boxRawName, $this->imapUsername, $this->imapPassword);
+        $imapStream = imap_open($this->imapAddress . $boxRawName, $this->imapUsername, $this->imapPassword);
         $messageUIDs = imap_search($imapStream, $criteria, SE_UID);
 
         if ($messageUIDs === false) {
