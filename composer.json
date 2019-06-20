@@ -11,7 +11,8 @@
   ],
   "require": {
     "sinri/ark-core": "^2.0",
-    "ext-json": "*"
+    "ext-json": "*",
+    "ext-mbstring": "*"
   },
   "suggest": {
     "ext-imap": "*"

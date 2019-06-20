@@ -17,22 +17,33 @@ class ArkImapWorker
     protected $imapUsername;
     protected $imapPassword;
     protected $useSSL;
+    protected $skipValidateCert;
     protected $imapAddress;
     /**
      * @var string
      */
     protected $lastError;
 
-    public function __construct($host, $port, $username, $password, $useSSL = true)
+    /**
+     * ArkImapWorker constructor.
+     * @param $host
+     * @param $port
+     * @param $username
+     * @param $password
+     * @param bool $useSSL Note, your port should be right with this option.
+     * @param bool $skipValidateCert An actually dangerous option. You may only need to use this as TRUE when IMAP Server causes cert error, such as `Certificate failure for imap.xxx.com: unable to get local issuer certificate: ...`
+     */
+    public function __construct($host, $port, $username, $password, $useSSL = true, $skipValidateCert = false)
     {
         $this->useSSL = $useSSL;
+        $this->skipValidateCert = $skipValidateCert;
         $this->imapHost = $host;
         $this->imapPort = $port;
         $this->imapUsername = $username;
         $this->imapPassword = $password;
         $this->logger = ArkLogger::makeSilentLogger();
 
-        $this->imapAddress = "{{$this->imapHost}:{$this->imapPort}/imap" . ($this->useSSL ? "/ssl" : "") . "}";
+        $this->imapAddress = "{{$this->imapHost}:{$this->imapPort}/imap" . ($this->useSSL ? "/ssl" . ($this->skipValidateCert ? "/novalidate-cert" : "") : "") . "}";
     }
 
     public static function createCriteriaWithDateRange($sinceDate = null, $beforeDate = null)
@@ -94,23 +105,32 @@ class ArkImapWorker
         return $this->lastError;
     }
 
+    /**
+     * @return ArkImapMailBoxExpression[]|bool
+     */
     public function listMailBoxes()
     {
         $imapStream = imap_open($this->imapAddress, $this->imapUsername, $this->imapPassword);
+        if (!$imapStream) {
+            $this->logger->error("IMAP ERROR: " . imap_last_error());
+            return false;
+        }
         $folders = imap_list($imapStream, $this->imapAddress, "*");//"{{$this->imapHost}:{$this->imapPort}}"
 
         $prefixLength = strlen($this->imapAddress);
 
         $list = [];
         foreach ($folders as $rawFolderName) {
-            $decodedFolderName = mb_convert_encoding($rawFolderName, "utf-8", "UTF7-IMAP");
+            $expression = new ArkImapMailBoxExpression($rawFolderName, $prefixLength);
+            $list[] = $expression;
 
-            $list[] = [
-                "raw" => $rawFolderName,// for raw IMAP coding
-                "utf8" => $decodedFolderName,// with leading address, for human debug
-                "code" => substr($rawFolderName, $prefixLength),// used for method `searchInMailBox`
-                "name" => substr($decodedFolderName, $prefixLength),// no leading address, for human reading
-            ];
+//            $decodedFolderName = mb_convert_encoding($rawFolderName, "utf-8", "UTF7-IMAP");
+//            $list[] = [
+//                "raw" => $rawFolderName,// for raw IMAP coding
+//                "utf8" => $decodedFolderName,// with leading address, for human debug
+//                "code" => substr($rawFolderName, $prefixLength),// used for method `searchInMailBox`
+//                "name" => substr($decodedFolderName, $prefixLength),// no leading address, for human reading
+//            ];
         }
 
         imap_close($imapStream);
@@ -118,7 +138,7 @@ class ArkImapWorker
     }
 
     /**
-     * @param $boxRawName
+     * @param string $boxRawName ArkImapMailBoxExpression::getMailboxCode
      * @param string $criteria
      * @param null|callable $callback function($imapStream, $messageUID, &$innerList,$logger) fetch mail through stream with UID and filter them into list
      * @return ArkImapMail[]|bool
@@ -126,6 +146,10 @@ class ArkImapWorker
     public function searchInMailBox($boxRawName, $criteria = 'ALL', $callback = null)
     {
         $imapStream = imap_open($this->imapAddress . $boxRawName, $this->imapUsername, $this->imapPassword);
+        if (!$imapStream) {
+            $this->logger->error("IMAP ERROR: " . imap_last_error());
+            return false;
+        }
         $messageUIDs = imap_search($imapStream, $criteria, SE_UID);
 
         if ($messageUIDs === false) {
@@ -139,8 +163,8 @@ class ArkImapWorker
         foreach ($messageUIDs as $messageUID) {
             $this->logger->debug("MESSAGE #" . $messageUID);
             if ($callback === null) {
-                $item = ArkImapMail::loadMail($imapStream, $messageUID);
-                $this->logger->debug("→ " . $item->sender . " sent " . $item->subject . " on " . $item->date);
+                $item = ArkImapMail::loadBodyLessMail($imapStream, $messageUID);
+                $this->logger->debug("→ " . $item->getSender() . " sent " . $item->getSubject() . " on " . $item->getDate());
                 $list[] = $item;
             } else {
                 call_user_func_array($callback, [$imapStream, $messageUID, &$list, $this->logger]);

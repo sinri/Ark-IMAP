@@ -4,34 +4,35 @@
 namespace sinri\ark\imap;
 
 
+use sinri\ark\core\ArkHelper;
+
 class ArkImapMail
 {
 
-    public $uid;
-    public $sno;
+    protected $uid;
+    protected $sno;
 
-    public $date;
-    public $subject;
-    public $from;
-    public $sender;
-
-    public $entireRawBody;
-
-    public $textBody;
-    public $mpTextBody;
-    public $mpHtmlBody;
+    protected $date;
+    protected $subject;
+    protected $from;
+    protected $sender;
+    /**
+     * @var ArkImapMailStructure
+     */
+    protected $structure;
+    protected $bodyPartDict = [];
 
     /**
      * @param $imapStream
      * @param $messageUID
      * @return ArkImapMail
+     * @deprecated
      */
     public static function loadMail($imapStream, $messageUID)
     {
         $item = self::loadBodyLessMail($imapStream, $messageUID);
 
-        //$structure = imap_fetchstructure($imapStream, $messageUID, FT_UID);
-        //var_dump($structure);
+        $item->loadMailStructure($imapStream);
 
         /**
          * With an email message that only has a text body and does not have any mime attachments, imap-fetchbody() will return the following for each requested part number:
@@ -79,7 +80,6 @@ class ArkImapMail
         $item->uid = $messageUID;
         $item->sno = $messageSequenceNumber;
 
-
         $mime = imap_headerinfo($imapStream, $messageSequenceNumber);
 
         $item->date = $mime->date;
@@ -90,27 +90,139 @@ class ArkImapMail
         return $item;
     }
 
-    public function loadEntireRawBody($imapStream)
+    public function loadMailStructure($imapStream)
     {
-        $body = imap_fetchbody($imapStream, $this->uid, "", FT_UID | FT_PEEK);
-        $this->entireRawBody = $body;
+        $this->structure = ArkImapMailStructure::loadFromServer($imapStream, $this->uid);
+    }
+
+    public function readBodyStructure($imapStream, $section)
+    {
+        return imap_bodystruct($imapStream, $this->sno, $section);
     }
 
     public function loadTextBody($imapStream)
     {
-        $body = imap_fetchbody($imapStream, $this->uid, "1", FT_UID | FT_PEEK);
-        $this->textBody = $body;//base64_decode($body);
+        $this->loadBodyWithPartIndex($imapStream, "1");
+//        $this->bodyPartDict["1"] = imap_fetchbody($imapStream, $this->uid, "1", FT_UID | FT_PEEK);
+//        $this->textBody = $body;//base64_decode($body);
+    }
+
+    public function loadBodyWithPartIndex($imapStream, $partIndex)
+    {
+        $this->bodyPartDict[$partIndex] = imap_fetchbody($imapStream, $this->uid, $partIndex, FT_UID | FT_PEEK);
     }
 
     public function loadMpTextBody($imapStream)
     {
-        $body = imap_fetchbody($imapStream, $this->uid, "1.1", FT_UID | FT_PEEK);
-        $this->mpTextBody = $body;//base64_decode($body);
+        $this->loadBodyWithPartIndex($imapStream, "1.1");
+//        $this->bodyPartDict["1.1"] = imap_fetchbody($imapStream, $this->uid, "1.1", FT_UID | FT_PEEK);
+//        $this->mpTextBody = $body;//base64_decode($body);
     }
 
     public function loadMpHtmlBody($imapStream)
     {
-        $body = imap_fetchbody($imapStream, $this->uid, "1.2", FT_UID | FT_PEEK);
-        $this->mpHtmlBody = $body;//base64_decode($body);
+        $this->loadBodyWithPartIndex($imapStream, "1.2");
+//        $this->bodyPartDict["1.2"] = imap_fetchbody($imapStream, $this->uid, "1.2", FT_UID | FT_PEEK);
+//        $this->mpHtmlBody = $body;//base64_decode($body);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getUid()
+    {
+        return $this->uid;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSno()
+    {
+        return $this->sno;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDate()
+    {
+        return $this->date;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSubject()
+    {
+        return $this->subject;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getFrom()
+    {
+        return $this->from;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSender()
+    {
+        return $this->sender;
+    }
+
+    /**
+     * @return ArkImapMailStructure
+     */
+    public function getStructure(): ArkImapMailStructure
+    {
+        return $this->structure;
+    }
+
+    /**
+     * @return array
+     */
+    public function getBodyPartDict()
+    {
+        return $this->bodyPartDict;
+    }
+
+    public function loadEntireBody($imapStream)
+    {
+        $this->loadBodyWithPartIndex($imapStream, "");
+        //$this->bodyPartDict[""] = imap_fetchbody($imapStream, $this->uid, "", FT_UID | FT_PEEK);
+        //$this->entireRawBody = $body;
+    }
+
+    public function getEntireBody()
+    {
+        $partIndex = "";
+        return $this->getBodyByPartIndex($partIndex);
+    }
+
+    public function getBodyByPartIndex($partIndex)
+    {
+        return ArkHelper::readTarget($this->bodyPartDict, $partIndex);
+    }
+
+    public function getTextBody()
+    {
+        $partIndex = "1";
+        return $this->getBodyByPartIndex($partIndex);
+    }
+
+    public function getMpTextBody()
+    {
+        $partIndex = "1.1";
+        return $this->getBodyByPartIndex($partIndex);
+    }
+
+    public function getMpHtmlBody()
+    {
+        $partIndex = "1.2";
+        return $this->getBodyByPartIndex($partIndex);
     }
 }

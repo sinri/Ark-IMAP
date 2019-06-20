@@ -21,7 +21,9 @@ $IE = new ArkImapWorker(
     $config['host'],
     $config['port'],
     $config['username'],
-    $config['password']
+    $config['password'],
+    true,
+    true
 );
 
 $IE->setLogger($logger);
@@ -41,7 +43,7 @@ $list = $IE->searchInMailBox(
     function ($imapStream, $messageUID, &$innerList, $logger) {
         $item = ArkImapMail::loadBodyLessMail($imapStream, $messageUID);
         $item->loadTextBody($imapStream);
-        $logger->info("Subject : " . $item->subject . " From " . $item->from . " On " . $item->date);
+        $logger->info("Subject : " . $item->getSubject() . " From " . $item->getFrom() . " On " . $item->getDate());
         $innerList[] = $item;
     }
 );
