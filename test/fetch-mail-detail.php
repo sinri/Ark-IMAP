@@ -52,9 +52,8 @@ $list = $IE->searchInMailBox(
 
         if (count($parts) === 0) {
             // only one part
-            $partIndex = $item->getStructure()->getType();
-            $item->loadBodyWithPartIndex($imapStream, $partIndex);
-            $logger->info("BODY TYPE [{$partIndex}]:" . PHP_EOL . $item->getBodyByPartIndex($partIndex));
+            $item->loadBodyWithPartIndex($imapStream, "1");
+            $logger->info("BODY PART [1]:" . PHP_EOL . $item->getBodyByPartIndex("1"));
         } else {
             foreach ($parts as $index => $part) {
                 $partIndex = $part->getPartIndex();

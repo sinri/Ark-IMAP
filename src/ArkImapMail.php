@@ -16,6 +16,7 @@ class ArkImapMail
     protected $subject;
     protected $from;
     protected $sender;
+
     /**
      * @var ArkImapMailStructure
      */
@@ -103,8 +104,6 @@ class ArkImapMail
     public function loadTextBody($imapStream)
     {
         $this->loadBodyWithPartIndex($imapStream, "1");
-//        $this->bodyPartDict["1"] = imap_fetchbody($imapStream, $this->uid, "1", FT_UID | FT_PEEK);
-//        $this->textBody = $body;//base64_decode($body);
     }
 
     public function loadBodyWithPartIndex($imapStream, $partIndex)
@@ -115,15 +114,11 @@ class ArkImapMail
     public function loadMpTextBody($imapStream)
     {
         $this->loadBodyWithPartIndex($imapStream, "1.1");
-//        $this->bodyPartDict["1.1"] = imap_fetchbody($imapStream, $this->uid, "1.1", FT_UID | FT_PEEK);
-//        $this->mpTextBody = $body;//base64_decode($body);
     }
 
     public function loadMpHtmlBody($imapStream)
     {
         $this->loadBodyWithPartIndex($imapStream, "1.2");
-//        $this->bodyPartDict["1.2"] = imap_fetchbody($imapStream, $this->uid, "1.2", FT_UID | FT_PEEK);
-//        $this->mpHtmlBody = $body;//base64_decode($body);
     }
 
     /**
